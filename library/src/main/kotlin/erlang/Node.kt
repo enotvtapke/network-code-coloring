@@ -1,24 +1,21 @@
 package erlang
 
 import io.mockk.every
-import io.mockk.mockk
 import io.mockk.mockkClass
-import net.bytebuddy.matcher.ElementMatchers.any
 import kotlin.reflect.KCallable
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
-import kotlin.reflect.full.memberFunctions
 
 data class MethodRef(val className: String, val signature: String)
 
-interface ActorRPC {
+interface Node {
     fun <T> call(ref: MethodRef, vararg args: Any?): T
     fun spawn(constructorRef: MethodRef, vararg args: Any?)
 }
 
 data class ActorsPool(val pool: MutableMap<String, Any> = mutableMapOf()): MutableMap<String, Any> by pool
 
-class ActorRPCImpl(val pool: ActorsPool) : ActorRPC {
+class NodeImpl(val pool: ActorsPool) : Node {
     override fun <T> call(ref: MethodRef, vararg args: Any?): T {
         val actor = pool[ref.className] ?: throw IllegalArgumentException("Actor `${ref.className}` not found in the pool")
         val method = actor::class.members.find { it.signature() == ref.signature } ?: throw IllegalArgumentException("Method `$ref` not found in the actor `$actor`")
@@ -34,9 +31,9 @@ class ActorRPCImpl(val pool: ActorsPool) : ActorRPC {
     }
 }
 
-fun <T> ActorRPC.call(clazz: KClass<*>, ref: KCallable<*>, vararg args: Any?): T = call(MethodRef(clazz.qualifiedName!!, ref.signature()), *args)
+fun <T> Node.call(clazz: KClass<*>, ref: KCallable<*>, vararg args: Any?): T = call(MethodRef(clazz.qualifiedName!!, ref.signature()), *args)
 
-fun <T: Any> ActorRPC.spawn(clazz: KClass<T>, constructorRef: KFunction<*>, vararg args: Any?): T {
+fun <T: Any> Node.spawn(clazz: KClass<T>, constructorRef: KFunction<*>, vararg args: Any?): T {
     val mock = mockkClass(clazz)
     mock::class.members.filter { it.name != "hashCode" }.forEach { func ->
         every {
@@ -65,7 +62,7 @@ class ImageConverter(initialCounter: Int) {
     }
 }
 
-val actorRPC = ActorRPCImpl(ActorsPool())
+val actorRPC = NodeImpl(ActorsPool())
 
 fun main() {
     val imageConverter = actorRPC.spawn(ImageConverter::class, ::ImageConverter, 6)
