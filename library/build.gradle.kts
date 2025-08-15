@@ -4,12 +4,14 @@ plugins {
     id("buildsrc.convention.kotlin-jvm")
     // Apply Kotlin Serialization plugin from `gradle/libs.versions.toml`.
     alias(libs.plugins.kotlinPluginSerialization)
+    alias(libs.plugins.ktorPlugin)
+    alias(libs.plugins.krpcPlugin)
 }
 
 dependencies {
     // Apply the kotlinx bundle of dependencies from the version catalog (`gradle/libs.versions.toml`).
     implementation(libs.bundles.kotlinxEcosystem)
     implementation(kotlin("reflect"))
-    implementation(libs.mockk)
+    implementation(libs.bundles.krpcKtor)
     testImplementation(kotlin("test"))
 }
