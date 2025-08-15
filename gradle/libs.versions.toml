@@ -23,14 +23,16 @@ krpcServer = { module = "org.jetbrains.kotlinx:kotlinx-rpc-krpc-server", version
 krpcKtorClient = { module = "org.jetbrains.kotlinx:kotlinx-rpc-krpc-ktor-client", version.ref = "krpc" }
 krpcKtorServer = { module = "org.jetbrains.kotlinx:kotlinx-rpc-krpc-ktor-server", version.ref = "krpc" }
 krpcSerializationJson = { module = "org.jetbrains.kotlinx:kotlinx-rpc-krpc-serialization-json", version.ref = "krpc" }
-#ktorClientCio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
+ktorClientCio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
+ktorServerCallLogging = { module = "io.ktor:ktor-server-call-logging", version.ref = "ktor" }
+ktorServerCallId = { module = "io.ktor:ktor-server-call-id", version.ref = "ktor" }
 ktorServerNetty = { module = "io.ktor:ktor-server-netty-jvm", version.ref = "ktor" }
 logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 
 # Libraries can be bundled together for easier import
 [bundles]
 kotlinxEcosystem = ["kotlinxDatetime", "kotlinxSerialization", "kotlinxCoroutines"]
-krpcKtor = ["krpcClient", "krpcServer", "krpcKtorClient", "krpcKtorServer", "ktorServerNetty", "logback"]
+krpcKtor = ["krpcClient", "krpcServer", "krpcKtorClient", "ktorClientCio", "krpcKtorServer", "ktorServerNetty", "krpcSerializationJson", "logback", "ktorServerCallLogging", "ktorServerCallId"]
 
 [plugins]
 kotlinPluginSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

@@ -1,51 +1,73 @@
 package core.examples
 
-import core.node.ActorsPool
-import core.node.NodeImpl
-import core.node.call
-import core.node.spawn
+import core.examples.Server.ImageConverterServer
+import core.node.*
+import kotlinx.coroutines.runBlocking
 
-val actorRPC = NodeImpl(ActorsPool())
+class Server {
+    class ImageConverterServer(initialCounter: Int) {
+        var imageCounter = initialCounter
+            get() = field
 
-class ImageConverterClient {
-    constructor(initialCounter: Int) {
-        actorRPC.spawn(ImageConverterServer::class, ::ImageConverterServer, initialCounter)
+        fun classifyImage(image: ByteArray): Int {
+            imageCounter += 1
+            return if (image[0] < 0.toByte()) 0 else 1
+        }
+
+        fun convertImage(image: ByteArray) {
+            throw IllegalStateException("Cannot call client function from server")
+        }
     }
 
-    var imageCounter: Int = 0
-        get() = actorRPC.call(ImageConverterServer::class, ImageConverterServer::imageCounter)
-
-    private fun classifyImage(image: ByteArray): Int {
-        return actorRPC.call(ImageConverterServer::class, ImageConverterServer::classifyImage, image)
-    }
-
-    fun convertImage(image: ByteArray) {
-        val c = classifyImage(image)
-        if (c == 0) return image.set(0, image[0].inc())
-    }
-}
-
-class ImageConverterServer(initialCounter: Int) {
-    var imageCounter = initialCounter
-        get() = field
-
-    fun classifyImage(image: ByteArray): Int {
-        imageCounter += 1
-        return if (image[0] < 0.toByte()) 0 else 1
-    }
-
-    fun convertImage(image: ByteArray) {
-        throw IllegalStateException("Cannot call client function from server")
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>): Unit = runBlocking {
+            nodeContext("/serverNode", 8080, listOf()).nodeServer.start(wait = true)
+        }
     }
 }
 
-fun main() {
-    val imageConverterClient = ImageConverterClient(6)
-    val image = byteArrayOf(-5, 0, 1)
+class Client {
+    class ImageConverterClient(val node: Node) {
+        val imageCounter: Int
+            get() = TODO() // Getter cannot be suspendable function // actorRPC.call(ImageConverterServer::class, ImageConverterServer::imageCounter)
 
-//    repeat(10) {
-        imageConverterClient.convertImage(image)
+        private suspend fun classifyImage(image: ByteArray): Int {
+            return node.call(ImageConverterServer::class, ImageConverterServer::classifyImage, image)
+        }
+
+        suspend fun convertImage(image: ByteArray) {
+            val c = classifyImage(image)
+            if (c == 0) return image.set(0, image[0].inc())
+        }
+    }
+
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>): Unit = runBlocking {
+            val context = nodeContext("/clientNode", 8080, listOf(RemoteNodeConfig("0.0.0.0", 8080, "/serverNode")))
+            val imageConverterClient = ImageConverterClient(context.linkedNodes[0]).also {
+                context.linkedNodes[0].spawn(ImageConverterServer::class, ::ImageConverterServer, 6)
+            }
+            val image = byteArrayOf(-5, 0, 1)
+
+            repeat(10) {
+                imageConverterClient.convertImage(image)
+            }
+            println(image.toList())
+        }
+    }
+}
+
+//fun main() = runBlocking {
+//    val imageConverterClient = ImageConverterClient(6).also {
+//        actorRPC.spawn(ImageConverterServer::class, ::ImageConverterServer, 6)
 //    }
-    println(image.toList())
-    println("Number of processed images: ${imageConverterClient.imageCounter}")
-}
+//    val image = byteArrayOf(-5, 0, 1)
+//
+////    repeat(10) {
+//        imageConverterClient.convertImage(image)
+////    }
+//    println(image.toList())
+////    println("Number of processed images: ${imageConverterClient.imageCounter}")
+//}

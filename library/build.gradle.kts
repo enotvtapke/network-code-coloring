@@ -13,5 +13,6 @@ dependencies {
     implementation(libs.bundles.kotlinxEcosystem)
     implementation(kotlin("reflect"))
     implementation(libs.bundles.krpcKtor)
+    implementation(libs.mockk)
     testImplementation(kotlin("test"))
 }
