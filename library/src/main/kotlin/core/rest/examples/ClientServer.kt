@@ -1,7 +1,10 @@
-package core.examples
+package core.rest.examples
 
-import core.examples.Server.ImageConverterServer
-import core.node.*
+import core.rest.examples.Server.ImageConverterServer
+import core.rest.node.MethodCall
+import core.rest.node.NodeClient
+import core.rest.node.RemoteNodeConfig
+import core.rest.node.node
 import kotlinx.coroutines.runBlocking
 
 class Server {
@@ -22,18 +25,18 @@ class Server {
     companion object {
         @JvmStatic
         fun main(args: Array<String>): Unit = runBlocking {
-            nodeContext("/serverNode", 8080, listOf()).nodeServer.start(wait = true)
+            node("/serverNode", 8080, listOf()).nodeServer.start(wait = true)
         }
     }
 }
 
 class Client {
-    class ImageConverterClient(val node: Node) {
+    class ImageConverterClient(val node: NodeClient) {
         val imageCounter: Int
-            get() = TODO() // Getter cannot be suspendable function // actorRPC.call(ImageConverterServer::class, ImageConverterServer::imageCounter)
+            get() = TODO() // Getter cannot be suspendable function
 
         private suspend fun classifyImage(image: ByteArray): Int {
-            return node.call(ImageConverterServer::class, ImageConverterServer::classifyImage, image)
+            return node.call(MethodCall(ImageConverterServer::class, ImageConverterServer::classifyImage, listOf(image)))
         }
 
         suspend fun convertImage(image: ByteArray) {
@@ -45,9 +48,9 @@ class Client {
     companion object {
         @JvmStatic
         fun main(args: Array<String>): Unit = runBlocking {
-            val context = nodeContext("/clientNode", 8080, listOf(RemoteNodeConfig("0.0.0.0", 8080, "/serverNode")))
+            val context = node("/clientNode", 8080, listOf(RemoteNodeConfig("0.0.0.0", 8080, "serverNode")))
             val imageConverterClient = ImageConverterClient(context.linkedNodes[0]).also {
-                context.linkedNodes[0].spawn(ImageConverterServer::class, ::ImageConverterServer, 6)
+                context.linkedNodes[0].spawn(MethodCall(ImageConverterServer::class, ::ImageConverterServer, listOf(6)))
             }
             val image = byteArrayOf(-5, 0, 1)
 
@@ -58,16 +61,3 @@ class Client {
         }
     }
 }
-
-//fun main() = runBlocking {
-//    val imageConverterClient = ImageConverterClient(6).also {
-//        actorRPC.spawn(ImageConverterServer::class, ::ImageConverterServer, 6)
-//    }
-//    val image = byteArrayOf(-5, 0, 1)
-//
-////    repeat(10) {
-//        imageConverterClient.convertImage(image)
-////    }
-//    println(image.toList())
-////    println("Number of processed images: ${imageConverterClient.imageCounter}")
-//}

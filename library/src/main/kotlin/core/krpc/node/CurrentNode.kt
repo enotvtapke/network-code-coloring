@@ -1,4 +1,4 @@
-package core.node
+package core.krpc.node
 
 import io.ktor.client.HttpClient
 import io.ktor.http.HttpHeaders
@@ -10,7 +10,6 @@ import io.ktor.server.netty.*
 import io.ktor.server.plugins.callid.CallId
 import io.ktor.server.plugins.callid.callIdMdc
 import io.ktor.server.plugins.calllogging.CallLogging
-import io.ktor.server.request.header
 import io.ktor.server.request.queryString
 import io.ktor.server.routing.*
 import kotlinx.rpc.krpc.ktor.client.KtorRpcClient

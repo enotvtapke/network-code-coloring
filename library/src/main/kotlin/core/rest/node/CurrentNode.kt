@@ -1,0 +1,89 @@
+package core.rest.node
+
+import io.ktor.client.*
+import io.ktor.client.plugins.*
+import io.ktor.client.plugins.logging.*
+import io.ktor.client.request.*
+import io.ktor.http.*
+import io.ktor.serialization.kotlinx.json.*
+import io.ktor.server.application.*
+import io.ktor.server.engine.*
+import io.ktor.server.logging.*
+import io.ktor.server.netty.*
+import io.ktor.server.plugins.callid.*
+import io.ktor.server.plugins.calllogging.*
+import io.ktor.server.request.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation as ServerContentNegotiation
+
+data class NodeContext(val nodeServer: EmbeddedServer<*, *>, val linkedNodes: List<NodeClient> = listOf())
+
+data class RemoteNodeConfig(val host: String, val port: Int, val path: String)
+
+fun node(path: String, port: Int, linkedNodes: List<RemoteNodeConfig> = listOf()): NodeContext {
+    val server = embeddedServer(Netty, port = port) {
+        module(path)
+    }
+
+    val remoteNodes = linkedNodes.map { linkedNode ->
+        val client = HttpClient {
+            defaultRequest {
+                url {
+                    host = linkedNode.host
+                    this.port = linkedNode.port
+                    val normalized = linkedNode.path.trim('/')
+                    encodedPath = if (normalized.isEmpty()) "/" else "/$normalized/"
+                }
+                accept(ContentType.Application.Json)
+                contentType(ContentType.Application.Json)
+            }
+            install(ClientContentNegotiation) {
+                json()
+            }
+            install(Logging) {
+                level = LogLevel.BODY
+            }
+        }
+        NodeClient(client)
+    }
+
+    return NodeContext(server, remoteNodes)
+}
+
+fun Application.module(path: String) {
+    configureMonitoring()
+    install(ServerContentNegotiation) {
+        json()
+    }
+
+    val nodeServer = NodeServer(ActorsPool())
+    routing {
+        route(path) {
+            post("/call") {
+                call.respond(nodeServer.call(call.receive()))
+            }
+            post("/spawn") {
+                val methodCall = call.receive<MethodCall>()
+                nodeServer.spawn(methodCall)
+            }
+        }
+    }
+}
+
+private fun Application.configureMonitoring() {
+    install(CallId) {
+        header(HttpHeaders.XRequestId)
+        verify { callId: String ->
+            callId.isNotEmpty()
+        }
+    }
+    install(CallLogging) {
+        callIdMdc("call-id")
+        format { call ->
+            val status = call.response.status() ?: "Unhandled"
+            "${status}: ${call.request.toLogString()} ${call.request.queryString()}"
+        }
+    }
+}
