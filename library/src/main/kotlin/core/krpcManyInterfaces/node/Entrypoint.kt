@@ -1,6 +1,7 @@
-package core.krpc.node
+package core.krpcManyInterfaces.node
 
-import core.krpc.examples.*
+import core.krpcManyInterfaces.examples.ImageConverterInterface
+import core.krpcManyInterfaces.examples.ImageConverterInterfaceImpl
 import io.ktor.client.*
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -18,9 +19,8 @@ import kotlinx.rpc.krpc.ktor.client.rpcConfig
 import kotlinx.rpc.krpc.ktor.server.Krpc
 import kotlinx.rpc.krpc.ktor.server.rpc
 import kotlinx.rpc.krpc.serialization.json.json
-import kotlinx.rpc.withService
 
-data class NodeContext(val nodeServer: EmbeddedServer<*, *>, val linkedNodes: List<Invocator> = listOf())
+data class NodeContext(val nodeServer: EmbeddedServer<*, *>, val linkedNodes: List<KtorRpcClient> = listOf())
 
 data class RemoteNodeConfig(val host: String, val port: Int, val path: String)
 
@@ -49,7 +49,7 @@ fun runNode(path: String, port: Int, linkedNodes: List<RemoteNodeConfig> = listO
                 }
             }
         }
-        Invocator(client.withService<Spawner>(), client.withService<Caller>())
+        client
     }
 
     return NodeContext(server, remoteNodes)
@@ -68,8 +68,7 @@ fun Application.module(path: String) {
             }
 
             val actorsPool = ActorsPool()
-            registerService<Spawner> { SpawnerImpl(actorsPool) }
-            registerService<Caller> { CallerImpl(actorsPool) }
+            registerService<ImageConverterInterface> { ImageConverterInterfaceImpl(actorsPool) }
         }
     }
 }
