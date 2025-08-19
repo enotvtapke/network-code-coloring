@@ -1,16 +1,15 @@
 package core.krpc.node
 
-import io.ktor.client.HttpClient
-import io.ktor.http.HttpHeaders
-import io.ktor.http.encodedPath
+import core.krpc.examples.*
+import io.ktor.client.*
+import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
-import io.ktor.server.logging.toLogString
+import io.ktor.server.logging.*
 import io.ktor.server.netty.*
-import io.ktor.server.plugins.callid.CallId
-import io.ktor.server.plugins.callid.callIdMdc
-import io.ktor.server.plugins.calllogging.CallLogging
-import io.ktor.server.request.queryString
+import io.ktor.server.plugins.callid.*
+import io.ktor.server.plugins.calllogging.*
+import io.ktor.server.request.*
 import io.ktor.server.routing.*
 import kotlinx.rpc.krpc.ktor.client.KtorRpcClient
 import kotlinx.rpc.krpc.ktor.client.installKrpc
@@ -21,11 +20,11 @@ import kotlinx.rpc.krpc.ktor.server.rpc
 import kotlinx.rpc.krpc.serialization.json.json
 import kotlinx.rpc.withService
 
-data class NodeContext(val nodeServer: EmbeddedServer<*, *>, val linkedNodes: List<Node> = listOf())
+data class NodeContext(val nodeServer: EmbeddedServer<*, *>, val linkedNodes: List<Invocator> = listOf())
 
 data class RemoteNodeConfig(val host: String, val port: Int, val path: String)
 
-fun nodeContext(path: String, port: Int, linkedNodes: List<RemoteNodeConfig> = listOf()): NodeContext {
+fun runNode(path: String, port: Int, linkedNodes: List<RemoteNodeConfig> = listOf()): NodeContext {
     val server = embeddedServer(Netty, port = port) {
         module(path)
         println("Server running")
@@ -51,7 +50,7 @@ fun nodeContext(path: String, port: Int, linkedNodes: List<RemoteNodeConfig> = l
                 }
             }
         }
-        client.withService<Node>()
+        Invocator(client.withService<Spawner>(), client.withService<Caller>())
     }
 
     return NodeContext(server, remoteNodes)
@@ -69,7 +68,9 @@ fun Application.module(path: String) {
                 }
             }
 
-            registerService<Node> { NodeImpl(ActorsPool()) }
+            val actorsPool = ActorsPool()
+            registerService<Spawner> { SpawnerImpl(actorsPool) }
+            registerService<Caller> { CallerImpl(actorsPool) }
         }
     }
 }
