@@ -10,7 +10,6 @@ import kotlinx.coroutines.runBlocking
 class Server {
     class ImageConverterServer(initialCounter: Int) {
         var imageCounter = initialCounter
-            get() = field
 
         fun classifyImage(image: ByteArray): Int {
             imageCounter += 1
