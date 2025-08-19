@@ -16,8 +16,27 @@ import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import io.ktor.util.reflect.TypeInfo
+import io.mockk.coEvery
+import io.mockk.mockkClass
+import kotlin.reflect.KClass
+import kotlin.reflect.KFunction
+import kotlin.reflect.KVisibility
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation as ServerContentNegotiation
+
+suspend fun <T: Any> NodeClient.spawn(`class`: KClass<T>, constructorRef: KFunction<*>, vararg args: Any?): T {
+    val mock = mockkClass(`class`)
+    mock::class.members.filter { it.name != "hashCode" && it.visibility == KVisibility.PUBLIC }.forEach { func ->
+        coEvery {
+            func.call(*(listOf<Any?>(mock) + func.parameters.drop(1).map { any(it.type.classifier as KClass<Any>) }).toTypedArray())
+        } coAnswers { mockCall ->
+            call(MethodCall(`class`, func, mockCall.invocation.args), TypeInfo(func.returnType.classifier as KClass<*>))
+        }
+    }
+    spawn(MethodCall(`class`, constructorRef, args.toList()))
+    return mock
+}
 
 data class NodeContext(val nodeServer: EmbeddedServer<*, *>, val linkedNodes: List<NodeClient> = listOf())
 
