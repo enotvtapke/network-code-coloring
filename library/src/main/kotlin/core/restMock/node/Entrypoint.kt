@@ -1,4 +1,4 @@
-package core.rest.node
+package core.restMock.node
 
 import io.ktor.client.*
 import io.ktor.client.plugins.*
